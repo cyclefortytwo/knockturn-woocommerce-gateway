@@ -22,22 +22,17 @@ function Knockturn_init_gateway_class() {
 	class WC_Knockturn_Gateway extends WC_Payment_Gateway {
  
  		public function __construct() {
-			$this->id = 'knockturn'; // payment gateway plugin ID
+			$this->id = 'knockturn'; 
         	$this->icon = apply_filters( 'woocommerce_knockturn_icon', plugins_url().'/knockturn-woocommerce-gateway/assets/icon.png' );
-			$this->has_fields = false; // in case you need a custom credit card form
+			$this->has_fields = false; 
 			$this->method_title = 'Knockturn Allee Grin Payments';
-			$this->method_description = 'Pay with Grins keeping your privacy'; // will be displayed on the options page
-		 
-			// gateways can support subscriptions, refunds, saved payment methods,
-			// but in this tutorial we begin with simple payments
+			$this->method_description = 'Pay with Grins keeping your privacy'; 		 
 			$this->supports = array(
 				'products'
 			);
 		 
-			// Method with all the options fields
 			$this->init_form_fields();
 		 
-			// Load the settings.
 			$this->init_settings();
 			$this->title = $this->get_option( 'title' );
 			$this->description = $this->get_option( 'description' );
@@ -47,13 +42,10 @@ function Knockturn_init_gateway_class() {
 			$this->payment_message = $this->get_option( 'payment_message' );
 			$this->api_key = $this->get_option( 'api_key' );
 		 
-			// This action hook saves the settings
 			add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
 		 
-			// We need custom JavaScript to obtain a token
 			add_action( 'wp_enqueue_scripts', array( $this, 'payment_scripts' ) );
 		 
-			// You can also register a webhook here
 			add_action( 'woocommerce_api_knockturn', array( $this, 'webhook' ) ); 
  		}
  
@@ -113,72 +105,52 @@ function Knockturn_init_gateway_class() {
 	 
 	 
 		public function process_payment( $order_id ) {
-				global $woocommerce;
+			global $woocommerce;
 			 
-				// we need it to get any order detailes
-				$order = wc_get_order( $order_id );
+			$order = wc_get_order( $order_id );
 			 
-			 
-				/*
-			 	 * Array with parameters for API interaction
-				 */
-				$args = array( 
-					'order_id' => (string) $order_id,
-					'amount' => array (
-						'amount' => (int)( $order->get_total() * 100),
-						'currency' => $order->get_currency(),
-					),
-					'message' => $this->payment_message,
-					'confirmations' => 1,
+			$args = array( 
+				'order_id' => (string) $order_id,
+				'amount' => array (
+					'amount' => (int)( $order->get_total() * 100),
+					'currency' => $order->get_currency(),
+				),
+				'message' => $this->payment_message,
+				'confirmations' => 1,
 
-				);
-			 
-				/*
-				 * Your API interaction could be built with wp_remote_post()
-			 	 */
-				 $response = wp_remote_post( $this->gateway_url, array(
-					 'headers'     => array(
-						'Content-Type' => 'application/json; charset=utf-8',
-					 	'Authorization' => 'Basic ' . base64_encode( $this->merchant_id . ':' . $this->api_key )
-						 ),
-    					'body'        => json_encode($args),
-    					'method'      => 'POST',
-    					'data_format' => 'body',
-				 ));
-			 
-			 
-				 if( !is_wp_error( $response ) ) {
-			 
-				  $body = json_decode( $response['body']);
-			 
-					 //if ( $body['response'] == 'APPROVED' ) {
-			 
-						// we received the payment
-								 
-						// some notes to customer (replace true with false to make it private)
-						$order->add_order_note( 'Hey, your ! Thank you!', true );
-			 
-						// Empty cart
-						$woocommerce->cart->empty_cart();
-			 
-						// Redirect to the thank you page
-						return array(
-							'result' => 'success',
-							'redirect' => sprintf("%s/%s", $this->gateway_url, $body->id),
-						);
-			 
-					 //} 			 
-				} else {
-					wc_add_notice(  'Connection error.', 'error' );
-					return;
-				}
-			 
- 
+			);
+		 
+			 $response = wp_remote_post( $this->gateway_url, array(
+				 'headers'     => array(
+					'Content-Type' => 'application/json; charset=utf-8',
+				 	'Authorization' => 'Basic ' . base64_encode( $this->merchant_id . ':' . $this->api_key )
+					 ),
+    				'body'        => json_encode($args),
+    				'method'      => 'POST',
+    				'data_format' => 'body',
+			 ));
+		 
+		 
+			 if(is_wp_error( $response ) ) {
+				wc_add_notice(  'Connection error.', 'error' );
+				return;
+			 }
+
+			 if ($response['response']['code'] != 201) {
+				wc_add_notice(  'Unexpected payment service response.', 'error' );
+				return;
+			 }
+		 
+			  $body = json_decode( $response['body']);
+		 	  $order->add_order_note( 'Payment started', true );
+			  $woocommerce->cart->empty_cart();
+			  return array(
+						'result' => 'success',
+						'redirect' => sprintf("%s/%s", $this->gateway_url, $body->id),
+					);
+		 
 	 	}
  
-		/*
-		 * In case you need a webhook, like PayPal IPN etc
-		 */
 		public function webhook() {
 			$body = file_get_contents('php://input');
 			$req = json_decode($body);
@@ -189,7 +161,6 @@ function Knockturn_init_gateway_class() {
 			} else {
 				$order->update_status('cancelled', 'Knockturn Allee rejected the payment ');
 			}
- 
 	 	}
  	}
 }
