@@ -44,8 +44,8 @@ function Knockturn_init_gateway_class() {
 			$this->enabled = $this->get_option( 'enabled' );
 			$this->gateway_url = $this->get_option( 'gateway_url' );
 			$this->merchant_id = $this->get_option( 'merchant_id' );
-			$this->testmode = 'yes' === $this->get_option( 'testmode' );
-			$this->api_key = $this->testmode ? $this->get_option( 'test_api_key' ) : $this->get_option( 'api_key' );
+			$this->payment_message = $this->get_option( 'payment_message' );
+			$this->api_key = $this->get_option( 'api_key' );
 		 
 			// This action hook saves the settings
 			add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
@@ -90,16 +90,18 @@ function Knockturn_init_gateway_class() {
 				'gateway_url' => array(
 					'title'       => 'Gateway URL',
 					'type'        => 'text',
-					'default'	  => 'http://castle.yourowncryp.to:3000/merchants/a/orders'
+					'default'	  => 'http://castle.yourowncryp.to:3000/merchants/a/payments'
 				),
 				'merchant_id' => array(
 					'title'       => 'Merchant ID',
 					'type'        => 'text',
 					'default'	  => 'a'
 				),
-				'test_api_key' => array(
-					'title'       => 'Test API Key',
-					'type'        => 'password',
+				'payment_message' => array(
+					'title'       => 'Payment message',
+					'type'        => 'text',
+					'description' => 'Message in Grin slate (usually a store name)',
+					'default'	  => 'WooCommerce'
 				),
 				'api_key' => array(
 					'title'       => 'Live API Key',
@@ -126,6 +128,7 @@ function Knockturn_init_gateway_class() {
 						'amount' => (int)( $order->get_total() * 100),
 						'currency' => $order->get_currency(),
 					),
+					'message' => $this->payment_message,
 					'confirmations' => 1,
 
 				);
