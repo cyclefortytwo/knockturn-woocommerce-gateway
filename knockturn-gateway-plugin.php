@@ -44,9 +44,6 @@ function Knockturn_init_gateway_class() {
 			$this->confirmations = $this->get_option( 'confirmations' );
 		 
 			add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
-		 
-			add_action( 'wp_enqueue_scripts', array( $this, 'payment_scripts' ) );
-		 
 			add_action( 'woocommerce_api_knockturn', array( $this, 'webhook' ) ); 
  		}
  
