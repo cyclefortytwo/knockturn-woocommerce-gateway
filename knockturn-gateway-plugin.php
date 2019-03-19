@@ -41,6 +41,7 @@ function Knockturn_init_gateway_class() {
 			$this->merchant_id = $this->get_option( 'merchant_id' );
 			$this->payment_message = $this->get_option( 'payment_message' );
 			$this->api_key = $this->get_option( 'api_key' );
+			$this->confirmations = $this->get_option( 'confirmations' );
 		 
 			add_action( 'woocommerce_update_options_payment_gateways_' . $this->id, array( $this, 'process_admin_options' ) );
 		 
@@ -71,14 +72,6 @@ function Knockturn_init_gateway_class() {
 					'description' => 'This controls the description which the user sees during checkout.',
 					'default'     => 'Pay with grin on Knockturn Allee',
 				),
-				'testmode' => array(
-					'title'       => 'Test mode',
-					'label'       => 'Enable Test Mode',
-					'type'        => 'checkbox',
-					'description' => 'Place the payment gateway in test mode using test API keys.',
-					'default'     => 'no',
-					'desc_tip'    => true,
-				),
 				'gateway_url' => array(
 					'title'       => 'Gateway URL',
 					'type'        => 'text',
@@ -95,8 +88,13 @@ function Knockturn_init_gateway_class() {
 					'description' => 'Message in Grin slate (usually a store name)',
 					'default'	  => 'WooCommerce'
 				),
+				'confirmations' => array(
+					'title'       => 'Number of block confirmations for a payment',
+					'type'        => 'text',
+					'default'	  => '5'
+				),
 				'api_key' => array(
-					'title'       => 'Live API Key',
+					'title'       => 'API Key',
 					'type'        => 'password'
 				)
 			);
@@ -116,7 +114,8 @@ function Knockturn_init_gateway_class() {
 					'currency' => $order->get_currency(),
 				),
 				'message' => $this->payment_message,
-				'confirmations' => 1,
+				'confirmations' => (int)$this->confirmations,
+				'redirect_url' => $order->get_checkout_order_received_url(),
 
 			);
 		 
@@ -154,6 +153,14 @@ function Knockturn_init_gateway_class() {
 		public function webhook() {
 			$body = file_get_contents('php://input');
 			$req = json_decode($body);
+			if ((!isset($req->token)) || ($req->token != $this->api_key)) {
+				header("HTTP/1.1 401 Unauthorized");
+				exit;
+			} 
+			if ((!isset($req->external_id)) || (!isset($req->status))) {
+				header("HTTP/1.1 400 Bad Request");
+				exit;
+			}
 			$order = wc_get_order( (int)$req->external_id );
 			if ($req->status == 'Confirmed') {
 			   	$order->payment_complete($req->id);
